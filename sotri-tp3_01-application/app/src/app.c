@@ -46,7 +46,7 @@
 #include "app_it.h"
 #include "task_producer.h"
 #include "task_consumer.h"
-
+#include "semphr.h"
 /********************** macros and definitions *******************************/
 #define G_APP_CNT_INI					0ul
 #define G_APP_TASK_CNT_INI				0ul
@@ -86,6 +86,7 @@ uint32_t g_tasks_cnt;
 /* Declare a variable of type TaskHandle_t. This is used to reference threads. */
 TaskHandle_t h_task_producer;
 TaskHandle_t h_task_consumer;
+SemaphoreHandle_t xSemElementoDisponible;
 
 /********************** external functions definition ************************/
 void app_init(void)
@@ -114,6 +115,15 @@ void app_init(void)
      * successfully.
      *
      * Add queue or semaphore (binary or counting) or mutex to registry. */
+
+	/* Crea el semáforo binario para el patrón Productor-Consumidor */
+	    xSemElementoDisponible = xSemaphoreCreateBinary();
+
+	    /* Verifica que se haya creado correctamente en el heap */
+	    configASSERT(xSemElementoDisponible != NULL);
+
+	    /* Agrega el semáforo al registro para depuración */
+	    vQueueAddToRegistry((QueueHandle_t)xSemElementoDisponible, "Sem_Disponible");
 
 	/* Add threads, ... */
     BaseType_t ret;
