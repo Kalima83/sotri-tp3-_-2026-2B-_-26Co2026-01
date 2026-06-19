@@ -63,17 +63,26 @@ extern uint32_t	g_tasks_cnt;
 /* Declare a variable of type SemaphoreHandle_t (binary or counting) or mutex.
  * This is used to reference the semaphore that is used to synchronize a thread
  * with other thread or to ensure mutual exclusive access to...*/
-extern SemaphoreHandle_t h_entry_a_bin_sem;
-extern SemaphoreHandle_t h_exit_a_bin_sem;
-extern SemaphoreHandle_t h_continue_bin_sem;
 
-extern SemaphoreHandle_t h_mutex_mut_sem;
+extern SemaphoreHandle_t xMutexAirlock;
+
+extern SemaphoreHandle_t xSemOpenReqA;
+extern SemaphoreHandle_t xSemDoorClosedA;
+
+extern SemaphoreHandle_t xSemOpenReqB;
+extern SemaphoreHandle_t xSemDoorClosedB;
+
+extern SemaphoreHandle_t xSemOpenReqC;
+extern SemaphoreHandle_t xSemDoorClosedC;
+
+extern SemaphoreHandle_t xSemOpenReqD;
+extern SemaphoreHandle_t xSemDoorClosedD;
 
 /* Declare a variable of type TaskHandle_t. This is used to reference threads. */
-extern TaskHandle_t h_task_entry_a;
-extern TaskHandle_t h_task_exit_a;
-extern TaskHandle_t h_task_entry_b;
-extern TaskHandle_t h_task_exit_b;
+extern TaskHandle_t h_task_gate_a;
+extern TaskHandle_t h_task_gate_b;
+extern TaskHandle_t h_task_gate_c;
+extern TaskHandle_t h_task_gate_d;
 extern TaskHandle_t h_task_test;
 
 /********************** external functions declaration ***********************/

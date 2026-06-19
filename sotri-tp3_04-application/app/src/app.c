@@ -82,6 +82,17 @@ uint32_t g_tasks_cnt;
  * This is used to reference the semaphore that is used to synchronize a thread
  * with other thread or to ensure mutual exclusive access to...*/
 
+SemaphoreHandle_t xMutexAirlock;
+
+SemaphoreHandle_t xSemOpenReqA;
+SemaphoreHandle_t xSemDoorClosedA;
+SemaphoreHandle_t xSemOpenReqB;
+SemaphoreHandle_t xSemDoorClosedB;
+SemaphoreHandle_t xSemOpenReqC;
+SemaphoreHandle_t xSemDoorClosedC;
+SemaphoreHandle_t xSemOpenReqD;
+SemaphoreHandle_t xSemDoorClosedD;
+
 /* Declare a variable of type TaskHandle_t. This is used to reference threads. */
 TaskHandle_t h_task_gate_a;
 TaskHandle_t h_task_gate_b;
@@ -116,6 +127,20 @@ void app_init(void)
      * successfully.
      *
      * Add queue or semaphore (binary or counting) or mutex to registry. */
+
+	/* Crea el Mutex para la Esclusa */
+	xMutexAirlock = xSemaphoreCreateMutex();
+	configASSERT(xMutexAirlock != NULL);
+
+	/* Crea los Semáforos Binarios para cada puerta */
+	xSemOpenReqA = xSemaphoreCreateBinary();
+	xSemDoorClosedA = xSemaphoreCreateBinary();
+	xSemOpenReqB = xSemaphoreCreateBinary();
+	xSemDoorClosedB = xSemaphoreCreateBinary();
+	xSemOpenReqC = xSemaphoreCreateBinary();
+	xSemDoorClosedC = xSemaphoreCreateBinary();
+	xSemOpenReqD = xSemaphoreCreateBinary();
+	xSemDoorClosedD = xSemaphoreCreateBinary();
 
 	/* Add threads, ... */
     BaseType_t ret;

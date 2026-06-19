@@ -75,6 +75,26 @@ void task_gate_b(void *parameters)
 	/* As per most tasks, this task is implemented in an infinite loop. */
 	for (;;)
 	{
+		/* 1. Espera solicitud de apertura (Bloqueante) */
+		xSemaphoreTake(xSemOpenReqB, portMAX_DELAY);
+
+		/* 2. Intenta adquirir el control exclusivo de la esclusa */
+		LOGGER_INFO("Gate B: Solicitud recibida. Esperando esclusa...");
+		xSemaphoreTake(xMutexAirlock, portMAX_DELAY);
+
+		/* 3. La esclusa está libre. Abre la puerta */
+		LOGGER_INFO("Gate B: [ABIERTA] - Persona ingresando/egresando.");
+
+		/* Simulamos un pequeño retardo si se desea (opcional) */
+		vTaskDelay(pdMS_TO_TICKS(500));
+
+		/* 4. Espera a que el hardware/test confirme que la puerta se cerró */
+		xSemaphoreTake(xSemDoorClosedB, portMAX_DELAY);
+
+		/* 5. Puerta cerrada, libera la esclusa para las otras puertas */
+		LOGGER_INFO("Gate B: [CERRADA]. Esclusa liberada.");
+		xSemaphoreGive(xMutexAirlock);
+
 		/* Update Task Counter */
 		g_task_gate_b_cnt++;
 

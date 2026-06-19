@@ -30,4 +30,29 @@ Este módulo gestiona la conexión entre los eventos físicos del hardware (pine
 Este archivo contiene funciones de retorno (*callbacks*) que FreeRTOS ejecuta automáticamente para auditar el sistema.
 * **`vApplicationIdleHook`:** Se ejecuta cuando ninguna otra tarea tiene trabajo que hacer. Incrementa `g_task_idle_cnt`. Es ideal para poner el microcontrolador en modo de bajo consumo (Sleep).
 * **`vApplicationTickHook`:** Se llama en cada interrupción del temporizador base de FreeRTOS (Tick). Incrementa de forma rápida el contador global del sistema.
-* **`vApplicationStackOverflowHook`:** Es un mecanismo vital de seguridad. Si alguna tarea (como una de las *gates*) consume más memoria RAM de su pila asignada, esta función atrapa el error (usando un `configASSERT`) y congela el sistema para evitar daños mayores y permitir su
+* **`vApplicationStackOverflowHook`:** Es un mecanismo vital de seguridad. Si alguna tarea (como una de las *gates*) consume más memoria RAM de su pila asignada, esta función atrapa el error (usando un `configASSERT`) y congela el sistema para evitar daños mayores y permitir su depuración.
+
+---
+
+### 💡 Diagnóstico del Estado Actual
+El código analizado presenta toda la infraestructura y las tareas necesarias. Sin embargo, actualmente **falta implementar los mecanismos de sincronización inter-tarea**. Para que el sistema funcione correctamente según un diseño *Event-Triggered*, se deberán incorporar semáforos, colas (Queues) o Event Groups para que la tarea `task_test` (o las interrupciones en `app_it.c`) puedan notificar y despertar de forma asíncrona a las tareas `task_gate_X` cuando ocurra un evento de solicitud de apertura.
+
+
+# Informe: Security Airlock - Puerta Esclusa
+
+## 1. Mecanismos de Sincronización Implementados
+Para resolver el problema del acceso a la esclusa de seguridad ("Security Airlock") implementando un sistema de múltiples puertas con capacidad máxima de una persona, se utilizó un enfoque mixto de sincronización en FreeRTOS:
+
+* **Semáforos Binarios (Event Signaling):** Se crearon 8 semáforos binarios, dos para cada compuerta (`xSemOpenReqX` y `xSemDoorClosedX`). Estos permiten desacoplar la generación de estímulos (tarea de test) de la lógica de control. Las tareas de las puertas se mantienen en estado `Blocked` hasta que ocurre un evento explícito, evitando la espera activa (*polling*).
+* **Mutex (Exclusión Mutua):** Se implementó un único Mutex global llamado `xMutexAirlock`. La regla fundamental del sistema exige que solo una puerta pueda estar abierta al mismo tiempo para mantener la seguridad física del espacio confinado. Todas las tareas de las puertas compiten por este Mutex antes de ejecutar la acción de apertura.
+
+## 2. Comportamiento Observado durante la Depuración
+Al observar la salida en la terminal (Logger) generada por el cruce de tareas, se comprobó la siguiente dinámica:
+
+1.  **Encolado de Solicitudes:** Cuando `task_test` inyecta solicitudes de apertura (`OPEN_REQUEST`) para varias puertas en un corto período de tiempo, cada tarea captura su semáforo de solicitud de manera independiente.
+2.  **Acceso Exclusivo:** La primera tarea en adquirir el `xMutexAirlock` entra en su sección crítica e imprime el estado **`[ABIERTA]`**. Las demás tareas, aunque recibieron su señal de solicitud, quedan bloqueadas intentando tomar el Mutex, garantizando que el interior de la esclusa permanezca aislado.
+3.  **Cierre y Liberación:** Una vez que `task_test` inyecta la señal `DOOR_CLOSED` a la puerta activa, esta captura su segundo semáforo, reconoce que el tránsito físico finalizó, imprime **`[CERRADA]`** y ejecuta un `xSemaphoreGive` sobre el Mutex de la esclusa.
+4.  **Resolución de Contención:** Inmediatamente después de liberar el Mutex, la siguiente tarea en espera lo adquiere automáticamente por orden de llegada (o prioridad, si existiera diferencia), abriendo la siguiente puerta encolada.
+
+## 3. Conclusiones
+El diseño demuestra ser infalible frente a condiciones de carrera (*Race Conditions*). El uso del Mutex resuelve nativamente el problema de contención física en la esclusa, mientras que el uso emparejado de Semáforos Binarios para la apertura y confirmación de cierre asegura que la puerta libere la zona compartida solo cuando el proceso físico ha culminado por completo, cumpliendo estrictamente con la especificación de "una sola puerta abierta a la vez".

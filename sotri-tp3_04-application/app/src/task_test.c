@@ -153,36 +153,36 @@ void task_test(void *parameters)
 			LOGGER_INFO("%s %s %d", p_task_test_e_task_test_array, GET_NAME(index), (int)index);
 
 			switch (e_task_test_array[index]) {
+			    case OPEN_REQUEST_A:
+			        xSemaphoreGive(xSemOpenReqA);
+			        break;
+			    case DOOR_CLOSED_A:
+			        xSemaphoreGive(xSemDoorClosedA);
+			        break;
 
-	    		case OPEN_REQUEST_A:
+			    case OPEN_REQUEST_B:
+			        xSemaphoreGive(xSemOpenReqB);
+			        break;
+			    case DOOR_CLOSED_B:
+			        xSemaphoreGive(xSemDoorClosedB);
+			        break;
 
-		    		break;
+			    case OPEN_REQUEST_C:
+			        xSemaphoreGive(xSemOpenReqC);
+			        break;
+			    case DOOR_CLOSED_C:
+			        xSemaphoreGive(xSemDoorClosedC);
+			        break;
 
-	    		case DOOR_CLOSED_A:
+			    case OPEN_REQUEST_D:
+			        xSemaphoreGive(xSemOpenReqD);
+			        break;
+			    case DOOR_CLOSED_D:
+			        xSemaphoreGive(xSemDoorClosedD);
+			        break;
 
-		    		break;
-
-	    		case OPEN_REQUEST_C:
-
-		    		break;
-
-	    		case DOOR_CLOSED_C:
-
-		    		break;
-
-	    		case OPEN_REQUEST_D:
-
-		    		break;
-
-	    		case DOOR_CLOSED_D:
-
-		    		break;
-
-
-	    		case Error:
-		    	default:
-
-		    		/* Print out: Signal Error */
+			    default:
+			      	/* Print out: Signal Error */
 		    		LOGGER_INFO(p_task_test_signal_error);
 		    		break;
 		    }
