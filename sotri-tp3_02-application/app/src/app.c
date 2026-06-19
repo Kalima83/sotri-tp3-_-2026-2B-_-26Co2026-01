@@ -82,6 +82,9 @@ uint32_t g_tasks_cnt;
 /* Declare a variable of type SemaphoreHandle_t (binary or counting) or mutex.
  * This is used to reference the semaphore that is used to synchronize a thread
  * with other thread or to ensure mutual exclusive access to...*/
+SemaphoreHandle_t xMutex;        /* Protege el contador de lectores */
+SemaphoreHandle_t xRoomEmpty;    /* Controla el acceso exclusivo a la sala */
+uint32_t g_readers_cnt;          /* Contador de lectores en la sección crítica */
 
 /* Declare a variable of type TaskHandle_t. This is used to reference threads. */
 TaskHandle_t h_task_reader;
@@ -149,6 +152,26 @@ void app_init(void)
     /* There is no dedicated list for task in Running mode (as we have only
      * one task in this state at the moment), but the currently run task ID
      * is stored in variable pxCurrentTCB */
+
+    /* INICIALIZACIÓN DE LOS MECANISMOS DE SINCRONIZACIÓN */
+
+        /* 1. Crea el Mutex para el contador */
+        xMutex = xSemaphoreCreateMutex();
+        configASSERT(xMutex != NULL);
+        vQueueAddToRegistry(xMutex, "MutexLectores");
+
+        /* 2. Crea el Semáforo Binario para la sala */
+        xRoomEmpty = xSemaphoreCreateBinary();
+        configASSERT(xRoomEmpty != NULL);
+        xSemaphoreGive(xRoomEmpty);
+        vQueueAddToRegistry(xRoomEmpty, "RoomEmpty");
+
+        /* 3. Inicializa contador de lectores */
+        g_readers_cnt = 0ul;
+
+        /* Print out: Application Initialized */
+        LOGGER_INFO(" ");
+
 
   	/* Application Interrupts Init */
 	app_it_init();

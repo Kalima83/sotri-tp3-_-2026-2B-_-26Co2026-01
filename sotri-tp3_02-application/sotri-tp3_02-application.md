@@ -121,3 +121,18 @@ Para completar el algoritmo teórico de **Lectores-Escritores** (con prioridad a
 
     xSemaphoreGive(xRoomEmpty);
     ```
+    
+# Informe de Problema de Lectores-Escritores
+
+## 1. Primitivos de Sincronización Seleccionados
+* **`xMutex` (Mutex de FreeRTOS):** Elegido para la exclusión mutua estricta sobre la variable compartida `g_readers_cnt`. Protege de condiciones de carrera cuando las tareas lectoras incrementan o decrementan el número de lectores simultáneos. Cuenta con herencia de prioridad.
+* **`xRoomEmpty` (Semáforo Binario de FreeRTOS):** Utilizado para implementar el patrón *Lightswitch* sobre la sección crítica global. Se descartó el uso de un Mutex para este propósito debido a que FreeRTOS prohíbe que una tarea libere un Mutex si no fue la misma tarea quien lo tomó. En el problema clásico, la tarea que toma el bloqueo de la sala es el *primer lector* y quien lo libera es el *último lector* (entidades/hilos potencialmente distintos), cumpliendo con la semántica nativa del semáforo binario.
+
+## 2. Comportamiento Observado en el Analizador / Logs
+Al ejecutar, compilar y depurar la aplicación con los primitivos incorporados, se verifican las siguientes reglas de concurrencia:
+1. **Exclusión del Escritor:** Cuando la tarea `Task Writer` adquiere el semáforo `xRoomEmpty`, los mensajes de log demuestran que ninguna `Task Reader` puede ingresar a la sección crítica de lectura, permaneciendo bloqueadas en el estado `Blocked` de FreeRTOS hasta que el escritor termina su ráfaga (`150 ms`) y ejecuta el `xSemaphoreGive(xRoomEmpty)`.
+2. **Concurrencia de Lectores:** Si una `Task Reader` está dentro de la sección crítica y llega otra instancia lectora, esta última incrementa el contador bajo la protección del Mutex e ingresa a leer en paralelo sin bloquearse, ya que `xRoomEmpty` solo es reclamado por el primer lector que encendió la "luz de la sala".
+3. **Prioridad de Lectores / Inanición (Starvation):** Dado que ambas tareas corren a la misma prioridad (`Priority 1`) y comparten el mismo retraso fuera de la sección crítica (`250 ms`), el planificador de FreeRTOS alterna su activación. Sin embargo, matemáticamente este patrón clásico concede prioridad a los lectores: si entran ráfagas continuas de lectores, el escritor sufrirá de inanición (starvation) ya que el semáforo `xRoomEmpty` nunca volverá a estar disponible hasta que `g_readers_cnt` sea exactamente `0`.
+
+## 3. Conclusiones Técnicas
+La implementación cumple con el modelo teórico de Allen B. Downey. El uso combinado de un Mutex (para la protección local de variables cortas con pertenencia de hilo) junto con un Semáforo Binario (para la señalización asincrónica inter-tareas de la sala vacía) garantiza la integridad de los datos compartidos eliminando los estados corruptos observables en la versión previa sin sincronizar.

@@ -61,6 +61,12 @@ const char *p_task_reader_wait_250mS	= "   ==> Task Reader - Wait:   250mS";
 /********************** external data declaration ****************************/
 uint32_t g_task_reader_cnt;
 
+/* Referencias externas para semaphore */
+
+extern SemaphoreHandle_t xMutex;
+extern SemaphoreHandle_t xRoomEmpty;
+extern uint32_t g_readers_cnt;
+
 /********************** external functions definition ************************/
 /* Task thread */
 void task_reader(void *parameters)
@@ -76,9 +82,31 @@ void task_reader(void *parameters)
 	for (;;)
 	{
 		/* Update Task Counter */
-		g_task_reader_cnt++;
+		/* === PROTOCOLO DE ENTRADA (Lightswitch) === */
+		xSemaphoreTake(xMutex, portMAX_DELAY);
+		g_readers_cnt++;
+		if (g_readers_cnt == 1ul)
+			{
+			xSemaphoreTake(xRoomEmpty, portMAX_DELAY); /* El primer lector bloquea la sala a los escritores */
+			}
+			xSemaphoreGive(xMutex);
 
-    	/* Print out: Wait 250mS */
+			/* LECTURA DEL RECURSO COMPARTIDO */
+
+		g_task_reader_cnt++;
+		LOGGER_INFO("   ==> Task Reader - LEYENDO RECURSO. Lectores activos = %lu", g_readers_cnt);
+		vTaskDelay(pdMS_TO_TICKS(100ul)); /* Simula tiempo de lectura en la sección crítica */
+
+		/* === PROTOCOLO DE SALIDA (Lightswitch) === */
+		xSemaphoreTake(xMutex, portMAX_DELAY);
+		g_readers_cnt--;
+		if (g_readers_cnt == 0ul)
+			{
+			xSemaphoreGive(xRoomEmpty); /* El último lector que sale libera la sala para los escritores */
+			}
+			xSemaphoreGive(xMutex);
+
+		/* Print out: Wait 250mS */
 		LOGGER_INFO(p_task_reader_wait_250mS);
 		vTaskDelay(TASK_READER_DEL_MAX);
 	}

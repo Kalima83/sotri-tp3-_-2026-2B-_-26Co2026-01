@@ -61,6 +61,11 @@ const char *p_task_writer_wait_250mS	= "   ==> Task Writer - Wait:   250mS";
 /********************** external data declaration ****************************/
 uint32_t g_task_writer_cnt;
 
+/* Referencias externas para semaphore */
+
+extern SemaphoreHandle_t xMutex;
+extern SemaphoreHandle_t xRoomEmpty;
+
 /********************** external functions definition ************************/
 /* Task thread */
 void task_writer(void *parameters)
@@ -75,6 +80,18 @@ void task_writer(void *parameters)
 	/* As per most tasks, this task is implemented in an infinite loop. */
 	for (;;)
     {
+		/* === PROTOCOLO DE ENTRADA === */
+		xSemaphoreTake(xRoomEmpty, portMAX_DELAY); /* Bloquea si hay lectores u otro escritor */
+
+		/* ESCRITURA EN EL RECURSO COMPARTIDO */
+
+		g_task_writer_cnt++;
+		LOGGER_INFO("   ==> Task Writer - ESCRIBIENDO EN EL RECURSO COMPARTIDO ***");
+		vTaskDelay(pdMS_TO_TICKS(150ul)); /* Simula tiempo de escritura en la sección crítica */
+
+		/* === PROTOCOLO DE SALIDA === */
+		xSemaphoreGive(xRoomEmpty);
+
 		/* Update Task Counter */
 		g_task_writer_cnt++;
 
