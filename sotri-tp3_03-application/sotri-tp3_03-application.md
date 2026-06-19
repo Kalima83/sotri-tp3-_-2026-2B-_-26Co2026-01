@@ -31,3 +31,22 @@ Este módulo implementa las funciones de retorno de llamada (*hooks*) obligatori
 * **`vApplicationIdleHook`**: Se llama automáticamente cuando el RTOS no tiene ninguna tarea de usuario lista para ejecutarse. Aquí se incrementa `g_task_idle_cnt`, siendo un lugar ideal para poner al microcontrolador en modo de bajo consumo.
 * **`vApplicationTickHook`**: Se invoca en cada pulso del reloj base del sistema (Tick), incrementando de forma rápida y segura el contador `g_app_tick_cnt`.
 * **`vApplicationStackOverflowHook`**: Mecanismo de seguridad crítico; se dispara si alguna de las tareas (como `Entry` o `Exit`) consume más memoria RAM de la asignada a su pila, previniendo fallas catastróficas.
+
+# Informe - Problema de Cruce Vehicular de Capacidad Limitada
+
+## 1. Mecanismos de Sincronización Implementados
+Para resolver el problema del control de acceso al cruce vial bajo un paradigma de **Sistema Dirigido por Eventos (Event-Triggered System)**, se implementó una arquitectura basada en dos tipos de primitivos de FreeRTOS:
+
+* **Semáforos Binarios (Señalización):** Se instanciaron cuatro semáforos binarios (`xSemEntryA`, `xSemExitA`, `xSemEntryB`, `xSemExitB`) para actuar como mecanismo de señalización asincrónica. Permiten que la tarea generadora de estímulos (`task_test`) notifique a las tareas de control correspondientes. Gracias a esto, las tareas de ingreso y egreso permanecen en estado `Blocked` (sin consumir ciclos de reloj de la CPU) hasta que realmente ocurre un evento en los sensores.
+* **Mutex (Exclusión Mutua y Control de Recursos):** Se utilizó un único Mutex (`xMutexCruce`) para proteger la variable global `g_vehicles_in_crossing`. Dado que cuatro tareas distintas (2 de entrada, 2 de salida) necesitan leer y modificar este contador, el Mutex garantiza operaciones atómicas, previniendo **condiciones de carrera (Race Conditions)**. Además, el Mutex envuelve la lógica condicional que verifica si se superó el límite `G_TASKS_CNT_MAX`, asegurando que la evaluación de capacidad sea completamente segura.
+
+## 2. Comportamiento Observado durante la Depuración (Debugging)
+Al ejecutar el firmware en el microcontrolador y monitorear la salida mediante la terminal serial (Logger), se observaron las siguientes dinámicas del sistema en tiempo real:
+
+1. **Gestión de Eventos:** El sistema no utiliza *polling* (espera activa). Las tareas `task_entry` y `task_exit` solo pasan a estado `Running` en el momento exacto en que `task_test` inyecta un estímulo y ejecuta un `xSemaphoreGive`.
+2. **Ingreso y Semáforo Verde:** Ante ráfagas de eventos `Entry_A` o `Entry_B`, las tareas de ingreso toman el Mutex, verifican que hay espacio en el cruce, incrementan el contador y reportan por consola el estado del semáforo vial en **`[VERDE]`**, simulando el tiempo de cruce mediante un `vTaskDelay`.
+3. **Bloqueo por Capacidad Máxima (Semáforo Rojo):** Cuando el contador de vehículos concurrentes en el cruce alcanza el límite establecido (`G_TASKS_CNT_MAX = 5`), el sistema reacciona de manera robusta. Si llega un nuevo estímulo de ingreso, la tarea adquiere el Mutex, detecta que la capacidad está colmada y rechaza el ingreso cambiando el semáforo vial a **`[ROJO]`**. Acto seguido, libera inmediatamente el Mutex sin incrementar el contador, protegiendo al cruce del desbordamiento físico.
+4. **Egreso y Liberación de Cupo:** Al recibir eventos `Exit_A` o `Exit_B`, las tareas de egreso entran a su sección crítica protegida por el Mutex, decrementan el contador y liberan el recurso. Se comprobó que, tras un egreso, el sistema vuelve a aceptar vehículos en el siguiente estímulo de entrada, restaurando el color verde en el semáforo de acceso.
+
+## 3. Conclusiones
+El diseño cumple exitosamente con los requisitos de concurrencia y control de capacidad. La combinación de **Semáforos Binarios** (para la sincronización de interrupciones o eventos de hardware/software) junto con un **Mutex** (para proteger la memoria compartida) demuestra ser el estándar óptimo y eficiente en FreeRTOS para coordinar el acceso a zonas físicas de recursos limitados sin sufrir interbloqueos (*deadlocks*) ni corrupción de datos.

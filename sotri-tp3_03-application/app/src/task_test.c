@@ -104,6 +104,12 @@ const e_task_test_t e_task_test_array[] = {Entry_A, Entry_A, Entry_A, Entry_A, E
 /********************** external data declaration *****************************/
 uint32_t g_task_test_cnt;
 
+/* Referencias externas a los semáforos de sincronización */
+extern SemaphoreHandle_t xSemEntryA;
+extern SemaphoreHandle_t xSemExitA;
+extern SemaphoreHandle_t xSemEntryB;
+extern SemaphoreHandle_t xSemExitB;
+
 /********************** external functions definition ************************/
 /* Task Test thread */
 void task_test(void *parameters)
@@ -154,17 +160,28 @@ void task_test(void *parameters)
 
 			switch (e_task_test_array[index]) {
 
-	    		case Entry_A:
+			    case Entry_A:
+			        LOGGER_INFO("Task Test -> [ESTÍMULO] Vehículo detectado frente a Entrada A");
+			        xSemaphoreGive(xSemEntryA);
+			        break;
 
-		    		break;
+			    case Exit_A:
+			        LOGGER_INFO("Task Test -> [ESTÍMULO] Vehículo detectado frente a Salida A");
+			        xSemaphoreGive(xSemExitA);
+			        break;
 
-	    		case Exit_A:
+			    case Entry_B:
+			        LOGGER_INFO("Task Test -> [ESTÍMULO] Vehículo detectado frente a Entrada B");
+			        xSemaphoreGive(xSemEntryB);
+			        break;
 
-		    		break;
+			    case Exit_B:
+			        LOGGER_INFO("Task Test -> [ESTÍMULO] Vehículo detectado frente a Salida B");
+			        xSemaphoreGive(xSemExitB);
+			        break;
 
-		    	case Error:
-		    	default:
-
+			    default:
+			        break;
 		    		/* Print out: Signal Error */
 		    		LOGGER_INFO(p_task_test_signal_error);
 		    		break;

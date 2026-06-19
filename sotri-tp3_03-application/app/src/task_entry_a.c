@@ -59,7 +59,14 @@
 const char *p_task_entry_a_wait_2500mS		= "   ==> Task Entry A - Wait:   2500mS";
 
 /********************** external data declaration *****************************/
-uint32_t g_task_entry_a_cnt;
+//uint32_t g_task_entry_a_cnt;
+/* Referencias externas a los semáforos de sincronización */
+uint32_t g_task_entry_a_cnt = 0ul;
+
+extern SemaphoreHandle_t xSemEntryA;
+extern SemaphoreHandle_t xMutexCruce;
+extern uint32_t g_vehicles_in_crossing;
+
 
 /********************** external functions definition ************************/
 /* Task thread */
@@ -75,6 +82,33 @@ void task_entry_a(void *parameters)
 	/* As per most tasks, this task is implemented in an infinite loop. */
 	for (;;)
 	{
+		/* Paso 1: Bloqueo/Espera del estímulo enviado por task_test (Semáforo Binario) */
+		        xSemaphoreTake(xSemEntryA, portMAX_DELAY);
+
+		        /* Paso 3 y 6: Acceso seguro al recurso compartido y evaluación de capacidad usando Mutex */
+		        xSemaphoreTake(xMutexCruce, portMAX_DELAY);
+
+		        if (g_vehicles_in_crossing < G_TASKS_CNT_MAX)
+		        {
+		            /* Hay espacio disponible en el cruce vial */
+		            g_vehicles_in_crossing++;
+		            g_task_entry_a_cnt++;
+
+		            /* Paso 4: Control del Semáforo Vial -> Cambia a VERDE */
+		            LOGGER_INFO("Entry A [VERDE]: Ingresa. Total=%lu", g_vehicles_in_crossing);
+
+		            xSemaphoreGive(xMutexCruce); /* Liberamos zona crítica */
+
+		            vTaskDelay(pdMS_TO_TICKS(1000ul)); /* Simula el tiempo que tarda físicamente el auto en cruzar */
+		        }
+		        else
+		        {
+		            /* El cruce vial alcanzó la capacidad máxima (G_TASKS_CNT_MAX) */
+		            /* Paso 4: Control del Semáforo Vial -> Cambia a ROJO (Impedir ingreso) */
+		        	LOGGER_INFO("Entry A [ROJO]: Lleno (%lu/%lu)", g_vehicles_in_crossing, G_TASKS_CNT_MAX);
+
+		            xSemaphoreGive(xMutexCruce); /* Liberamos zona crítica inmediatamente */
+		        }
 		/* Update Task Counter */
 		g_task_entry_a_cnt++;
 

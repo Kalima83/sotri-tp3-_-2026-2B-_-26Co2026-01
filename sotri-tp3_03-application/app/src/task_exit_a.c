@@ -59,7 +59,10 @@
 const char *p_task_exit_a_wait_2500mS		= "   ==> Task Exit A  - Wait:   2500mS";
 
 /********************** external data declaration *****************************/
-uint32_t g_task_exit_a_cnt;
+extern SemaphoreHandle_t xSemExitA;
+extern SemaphoreHandle_t xMutexCruce;
+extern uint32_t g_vehicles_in_crossing;
+uint32_t g_task_exit_a_cnt = 0ul;
 
 /********************** external functions definition ************************/
 /* Task thread */
@@ -75,6 +78,23 @@ void task_exit_a(void *parameters)
 	/* As per most tasks, this task is implemented in an infinite loop. */
 	for (;;)
 	{
+		/* Paso 2: Bloqueo/Espera de la señal de salida enviada por task_test */
+		        xSemaphoreTake(xSemExitA, portMAX_DELAY);
+
+		        vTaskDelay(pdMS_TO_TICKS(800ul)); /* Simula el tiempo físico de tránsito por la zona de egreso */
+
+		        /* Paso 3: Sección Crítica protegida por Mutex para decrementar contador */
+		        xSemaphoreTake(xMutexCruce, portMAX_DELAY);
+
+		        if (g_vehicles_in_crossing > 0ul)
+		        {
+		            g_vehicles_in_crossing--;
+		            g_task_exit_a_cnt++;
+		            LOGGER_INFO("Exit A: Egresó. Total=%lu", g_vehicles_in_crossing);
+		        }
+
+		        xSemaphoreGive(xMutexCruce);
+
 		/* Update Task Counter */
 		g_task_exit_a_cnt++;
 

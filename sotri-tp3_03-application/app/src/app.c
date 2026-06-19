@@ -58,6 +58,8 @@
 #define G_APP_STACK_OVERFLOW_CNT_INI	0ul
 #define G_TASKS_CNT_INI					0ul
 
+#define G_TASKS_CNT_MAX         5ul     /* Capacidad máxima de vehículos en el cruce */
+
 /********************** internal data declaration ****************************/
 
 /********************** internal functions declaration ***********************/
@@ -76,11 +78,21 @@ uint32_t g_app_stack_overflow_cnt;
 
 uint32_t g_tasks_cnt;
 
+
 /* Declare a variable of type QueueHandle_t. This is used to reference queues*/
 
 /* Declare a variable of type SemaphoreHandle_t (binary or counting) or mutex.
  * This is used to reference the semaphore that is used to synchronize a thread
  * with other thread or to ensure mutual exclusive access to...*/
+
+SemaphoreHandle_t xSemEntryA;           /* vehículo en entrada A */
+SemaphoreHandle_t xSemExitA;            /* vehículo en salida A */
+SemaphoreHandle_t xSemEntryB;           /* vehículo en entrada B */
+SemaphoreHandle_t xSemExitB;            /* vehículo en salida B */
+
+SemaphoreHandle_t xMutexCruce;          /* Mutex para proteger el acceso al cruce y contadores */
+
+uint32_t g_vehicles_in_crossing = 0ul;  /* Contador global de vehículos dentro del cruce */
 
 /* Declare a variable of type TaskHandle_t. This is used to reference threads. */
 TaskHandle_t h_task_entry_a;
@@ -116,6 +128,27 @@ void app_init(void)
      * successfully.
      *
      * Add queue or semaphore (binary or counting) or mutex to registry. */
+	/* 1. Crea Semáforos Binarios para la sincronización de estímulos - inician en 0 */
+	    xSemEntryA = xSemaphoreCreateBinary();
+	    xSemExitA  = xSemaphoreCreateBinary();
+	    xSemEntryB = xSemaphoreCreateBinary();
+	    xSemExitB  = xSemaphoreCreateBinary();
+	    configASSERT(xSemEntryA != NULL && xSemExitA != NULL && xSemEntryB != NULL && xSemExitB != NULL);
+
+	    /* 2. Crea Mutex para control de capacidad y acceso a recursos compartidos */
+	    xMutexCruce = xSemaphoreCreateMutex();
+	    configASSERT(xMutexCruce != NULL);
+
+	    /* Inicializa el contador global */
+	    g_vehicles_in_crossing = 0ul;
+
+	    /* Agrega primitivos al registro para debugging */
+	    vQueueAddToRegistry(xSemEntryA, "SemEntryA");
+	    vQueueAddToRegistry(xSemExitA, "SemExitA");
+	    vQueueAddToRegistry(xSemEntryB, "SemEntryB");
+	    vQueueAddToRegistry(xSemExitB, "SemExitB");
+	    vQueueAddToRegistry(xMutexCruce, "MutexCruce");
+
 
 	/* Add threads, ... */
     BaseType_t ret;
